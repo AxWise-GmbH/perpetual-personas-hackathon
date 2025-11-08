@@ -10,11 +10,12 @@
 
 Perpetual Personas brings customer research to life by transforming interview data into **living, interactive personas** with:
 
-- 🎨 **AI-Generated Avatars** - Professional portraits using Gemini 2.5 Flash Image
-- 🌍 **Location-Aware City Profiles** - Personalized lifestyle recommendations based on persona location
+- 🎨 **AI-Generated Avatars** - Professional portraits using Runware & Gemini 2.5 Nano Banana
+- 🌍 **Location-Aware City Profiles** - Personalized lifestyle recommendations based on persona location using Google Gemini 2.5 Flash
 - 🍽️ **Food Recommendations** - AI-generated food photography for lunch/dinner spots
 - 💬 **Persona Quotes** - Extracted insights in the persona's voice
 - 📊 **Interactive Gallery** - Visual persona cards with lightbox viewing
+- 🔌 **OpenAI-Compatible** - Schema-compatible architecture for seamless AI provider integration
 
 ---
 
@@ -28,22 +29,26 @@ Perpetual Personas brings customer research to life by transforming interview da
 
 All features below were developed during the hackathon period:
 
-✅ AI avatar generation (Gemini 2.5 Flash Image)  
-✅ City-aware lifestyle profiles (Gemini 2.5 Flash)  
-✅ Food recommendation with AI-generated images  
-✅ LLM-based beverage classification  
-✅ Quote extraction and display  
-✅ Interactive gallery UI with lightbox  
-✅ Text/watermark prevention in images  
+✅ AI avatar generation (Runware & Gemini 2.5 Nano Banana)
+✅ City-aware lifestyle profiles (Google Gemini 2.5 Flash)
+✅ Food recommendation with AI-generated images
+✅ OpenAI-compatible architecture for seamless AI provider integration
+✅ LLM-based beverage classification
+✅ Quote extraction and display
+✅ Interactive gallery UI with lightbox
+✅ Text/watermark prevention in images
+✅ Runway integration capability for future video generation
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### AI/ML
-- **Google Gemini 2.5 Flash** - Text generation (city profiles, quotes, persona analysis)
-- **Google Gemini 2.5 Flash Image** - Avatar and food image generation
-- **LLM Classification** - Intelligent beverage vs. food detection
+- **OpenAI** - Schema-compatible architecture for seamless AI provider integration
+- **Google Gemini 2.5 Flash** - Text generation (city profiles, quotes, persona analysis, LLM-based beverage classification)
+- **Runware** - Image generation infrastructure
+- **Gemini 2.5 Nano Banana** - Image generation model (avatars, food photography)
+- **Runway** - Video generation capability for future persona intro videos
 
 ### Backend
 - **FastAPI** - REST API framework
