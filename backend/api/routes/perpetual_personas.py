@@ -179,21 +179,9 @@ async def generate_persona_avatar(
         seed = f"{result_id}:{persona_id}:{persona_name}:{style_desc}"
         data_uri = svg_avatar_data_uri(persona_name, seed=seed)
 
-    upsert_persona_fields(
-        results,
-        persona_id,
-        {"avatar_data_uri": data_uri, "avatar_style_pack": style_pack},
-    )
-
-    # Persist
-    ar.results = results
-    try:
-        flag_modified(ar, "results")
-        db.add(ar)
-        db.commit()
-    except Exception as e:
-        print(f"[ERROR] Failed to persist avatar for persona {persona_id}: {e}")
-
+    # Return ephemeral avatar without database persistence
+    # This allows users to compare different personas/cities in multiple tabs
+    # and ensures fresh generation on each request
     return {"ok": True, "result_id": result_id, "persona_id": persona_id, "avatar_data_uri": data_uri}
 
 
@@ -584,27 +572,11 @@ async def generate_food_image(
         except Exception as e:
             print(f"[ERROR] Food image generation failed: {e}")
 
-    # Store the image in the recommendation
-    if image_data_uri:
-        # Initialize food_images dict if it doesn't exist
-        if "food_images" not in persona:
-            persona["food_images"] = {}
-
-        # Store by meal_type and index
-        image_key = f"{meal_type}_{rec_index}"
-        persona["food_images"][image_key] = image_data_uri
-
-        # Update persona
-        persona = upsert_persona_fields(results, persona_id, {"food_images": persona["food_images"]})
-
-        ar.results = results
-        try:
-            flag_modified(ar, "results")
-            db.add(ar)
-            db.commit()
-        except Exception as e:
-            print(f"[ERROR] Failed to save food image: {e}")
-
+    # Return ephemeral food image without database persistence
+    # This allows users to:
+    # - Compare different city profiles side-by-side in multiple browser tabs
+    # - Get fresh image variations on each request
+    # - Switch between cities without seeing cached images from previous cities
     return {
         "ok": True,
         "result_id": result_id,
