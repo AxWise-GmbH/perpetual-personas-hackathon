@@ -698,6 +698,102 @@ async def list_analysis_results(
     return {"ok": True, "items": items}
 
 
+@router.post("/cleanup-images")
+async def cleanup_persona_images(
+    payload: Dict[str, Any] = Body(default={}),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Remove all persisted avatar and food images from AnalysisResult.results.personas[*].
+
+    Default scope: only results owned by the current user. To attempt a global cleanup,
+    pass {"for_all": true} in the request body. Use with caution.
+    """
+    for_all = bool(payload.get("for_all"))
+    limit = payload.get("limit")
+    try:
+        limit = int(limit) if limit is not None else None
+    except Exception:
+        limit = None
+
+    # Select rows
+    rows = []
+    try:
+        q = db.query(AnalysisResult)
+        if not for_all:
+            try:
+                if user and getattr(user, "user_id", None):
+                    q = (
+                        q.join(InterviewData, AnalysisResult.data_id == InterviewData.id)
+                         .filter(InterviewData.user_id == user.user_id)
+                    )
+            except Exception:
+                pass
+        if limit and limit > 0:
+            rows = q.limit(limit).all()
+        else:
+            rows = q.all()
+    except Exception as e:
+        print(f"[ERROR] Cleanup query failed: {e}")
+        rows = []
+
+    counters: Dict[str, int] = {
+        "rows_scanned": 0,
+        "rows_updated": 0,
+        "avatars_removed": 0,
+        "food_images_removed": 0,
+    }
+
+    for ar in rows:
+        counters["rows_scanned"] += 1
+        res = _load_results_obj(ar)
+        personas = res.get("personas")
+        modified = False
+        if isinstance(personas, list):
+            for i, p in enumerate(personas):
+                if not isinstance(p, dict):
+                    continue
+                removed_any = False
+                # Remove avatar variants
+                for key in ("avatar_data_uri", "avatar_url", "avatar"):
+                    if p.pop(key, None) is not None:
+                        counters["avatars_removed"] += 1
+                        removed_any = True
+                # Remove food images
+                if p.pop("food_images", None) is not None:
+                    counters["food_images_removed"] += 1
+                    removed_any = True
+                if removed_any:
+                    personas[i] = p
+                    modified = True
+        if modified:
+            try:
+                ar.results = res
+                flag_modified(ar, "results")
+                db.add(ar)
+                counters["rows_updated"] += 1
+            except Exception as e:
+                print(f"[ERROR] Failed to stage cleanup for result {getattr(ar,'result_id', '?')}: {e}")
+                continue
+
+    try:
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Cleanup commit failed: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail="Cleanup failed during commit")
+
+    return {
+        "ok": True,
+        "scope": "all" if for_all else "user",
+        **counters,
+    }
+
+
 @router.post("/{result_id}/{persona_id}/city-profile")
 async def generate_persona_city_profile(
     result_id: int,
