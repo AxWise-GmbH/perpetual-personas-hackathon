@@ -175,7 +175,7 @@ class GeminiTextService:
 
         prompt = (
             f"You are a {city} local expert and food culture specialist. Produce a concise JSON object only (no prose). "
-            f"Fields: city ('{city}'), neighborhood (a real neighborhood in {city}), "
+            f"Fields: city ('{city}'), neighborhood (a real, diverse neighborhood in {city} - vary your selection, don't always pick the same one), "
             f"district (the district/borough that contains the neighborhood), "
             f"origin_description (where in {city} they are from), "
             "dining_context {solo: number, social: number, business: number} - Probability scores (0-100) for dine-in contexts, "
@@ -187,6 +187,7 @@ class GeminiTextService:
             "dinner {summary, weekday, weekend, date_night, nearby_recommendations[name,type,area,why,typical_order,drink]}. "
             f"Recommendations must be realistic {city} places near the neighborhood (walk/short transit). "
             f"Use authentic local restaurants, cafes, and food spots that match {city}'s food culture. "
+            f"IMPORTANT: Choose a different neighborhood each time - explore the diversity of {city}'s neighborhoods. "
             "STRICT CONSTRAINTS: \n"
             "- 'typical_order' MUST be a solid food dish (e.g., sandwich, bowl, salad, pastry, entrée); it can never be a beverage.\n"
             "- 'drink' MUST be a beverage only (e.g., coffee, tea, smoothie, juice, soda, beer, wine, cocktail).\n"
@@ -205,7 +206,7 @@ class GeminiTextService:
             "Return strict JSON only."
         )
 
-        data = self.generate_json(prompt, temperature=0.5)
+        data = self.generate_json(prompt, temperature=0.8)
         if data:
             print(f"[DEBUG] GeminiTextService: Successfully generated city profile for {city}")
         else:
