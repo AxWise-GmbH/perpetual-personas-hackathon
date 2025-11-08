@@ -233,7 +233,5 @@ One of the toughest parts was generating food images that looked realistic and m
 
 ---
 
-## Quick Feedback
 
-The hackathon was well-organized and the sponsor tech (especially OpenAI compatibility, Google Gemini, and Runware) was powerful and easy to integrate. Would love to see more AI-focused hackathons in the future!
 
