@@ -512,6 +512,10 @@ async def generate_food_image(
 
     print(f"[DEBUG] Food-image request: {restaurant_name} | dish='{dish}' | drink='{drink}' | meal={meal_type} index={rec_index}")
 
+    # Get city and neighborhood context for location-specific imagery
+    city = city_profile.get("city", "")
+    neighborhood = city_profile.get("neighborhood", "")
+
     # Generate image using Gemini
     gimg = GeminiImageService()
     image_data_uri = None
@@ -522,6 +526,7 @@ async def generate_food_image(
 
         # Create detailed prompt for food photography
         # IMPORTANT: Explicitly prevent text, watermarks, labels
+        # IMPORTANT: Include city context to prevent location confusion
         prompt_parts = [
             "Professional food photography,",
             "skeumorphic design,",
@@ -531,6 +536,16 @@ async def generate_food_image(
 
         if drink:
             prompt_parts.append(f"and {drink}")
+
+        # Add location context to prevent city confusion (e.g., Sevilla vs Berlin)
+        location_context = []
+        if city:
+            location_context.append(f"in {city}")
+        if neighborhood:
+            location_context.append(f"{neighborhood} neighborhood")
+
+        if location_context:
+            prompt_parts.append(f"({', '.join(location_context)}),")
 
         prompt_parts.extend([
             f"at {restaurant_name},",
@@ -558,7 +573,8 @@ async def generate_food_image(
 
         prompt = " ".join(prompt_parts)
 
-        print(f"[DEBUG] Generating food image for {restaurant_name} ({meal_type} #{rec_index}, unique_id: {unique_id})")
+        print(f"[DEBUG] Generating food image for {restaurant_name} in {city} ({meal_type} #{rec_index}, unique_id: {unique_id})")
+        print(f"[DEBUG] Food image prompt includes city context: {city}, {neighborhood}")
 
         try:
             # Use temperature=0.9 for more variation in food images
