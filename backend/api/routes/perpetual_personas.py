@@ -49,6 +49,24 @@ def _load_results_obj(ar: AnalysisResult) -> Dict[str, Any]:
     return res
 
 
+def _slugify(s: str) -> str:
+    """Lightweight slugify used for deterministic image keys.
+    Keeps [a-z0-9] and replaces everything else with single dashes.
+    """
+    try:
+        return re.sub(r"(^-|-$)", "", re.sub(r"[^a-z0-9]+", "-", (s or "").lower())).strip("-")
+    except Exception:
+        return ""
+
+
+def _food_image_key(meal: str, restaurant: str, dish: str, drink: str = "") -> str:
+    # Include restaurant + dish + optional drink to avoid stale index-based mismatches
+    parts = [meal or "", _slugify(restaurant), _slugify(dish)]
+    if drink:
+        parts.append(_slugify(drink))
+    return "__".join([p for p in parts if p])
+
+
 def _detect_city_from_persona(persona: Dict[str, Any], payload_city: Optional[str] = None) -> str:
     """
     Intelligently detect city from persona data with multiple fallback strategies.
@@ -179,9 +197,21 @@ async def generate_persona_avatar(
         seed = f"{result_id}:{persona_id}:{persona_name}:{style_desc}"
         data_uri = svg_avatar_data_uri(persona_name, seed=seed)
 
-    # Option 3: Return ephemeral avatar without any database persistence
-    # - Avoids cross-tab caching issues
-    # - Ensures fresh generation per request
+    upsert_persona_fields(
+        results,
+        persona_id,
+        {"avatar_data_uri": data_uri, "avatar_style_pack": style_pack},
+    )
+
+    # Persist
+    ar.results = results
+    try:
+        flag_modified(ar, "results")
+        db.add(ar)
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Failed to persist avatar for persona {persona_id}: {e}")
+
     return {"ok": True, "result_id": result_id, "persona_id": persona_id, "avatar_data_uri": data_uri}
 
 
@@ -500,10 +530,6 @@ async def generate_food_image(
 
     print(f"[DEBUG] Food-image request: {restaurant_name} | dish='{dish}' | drink='{drink}' | meal={meal_type} index={rec_index}")
 
-    # Get city and neighborhood context for location-specific imagery
-    city = city_profile.get("city", "")
-    neighborhood = city_profile.get("neighborhood", "")
-
     # Generate image using Gemini
     gimg = GeminiImageService()
     image_data_uri = None
@@ -514,7 +540,6 @@ async def generate_food_image(
 
         # Create detailed prompt for food photography
         # IMPORTANT: Explicitly prevent text, watermarks, labels
-        # IMPORTANT: Include city context to prevent location confusion
         prompt_parts = [
             "Professional food photography,",
             "skeumorphic design,",
@@ -525,16 +550,6 @@ async def generate_food_image(
         if drink:
             prompt_parts.append(f"and {drink}")
 
-        # Add location context to prevent city confusion (e.g., Sevilla vs Berlin)
-        location_context = []
-        if city:
-            location_context.append(f"in {city}")
-        if neighborhood:
-            location_context.append(f"{neighborhood} neighborhood")
-
-        if location_context:
-            prompt_parts.append(f"({', '.join(location_context)}),")
-
         prompt_parts.extend([
             f"at {restaurant_name},",
             "on a clean restaurant table,",
@@ -542,6 +557,8 @@ async def generate_food_image(
             "well-lit with natural lighting,",
             "shallow depth of field,",
             "restaurant quality plating,",
+            "exactly depict the named dish (and beverage if provided) — no substitutions or approximations,",
+            "authentic plating and cuisine style for the dish,",
             "detailed textures,",
             "vibrant colors,",
             "overhead or 45-degree angle,",
@@ -561,8 +578,7 @@ async def generate_food_image(
 
         prompt = " ".join(prompt_parts)
 
-        print(f"[DEBUG] Generating food image for {restaurant_name} in {city} ({meal_type} #{rec_index}, unique_id: {unique_id})")
-        print(f"[DEBUG] Food image prompt includes city context: {city}, {neighborhood}")
+        print(f"[DEBUG] Generating food image for {restaurant_name} ({meal_type} #{rec_index}, unique_id: {unique_id})")
 
         try:
             # Use temperature=0.9 for more variation in food images
@@ -572,10 +588,28 @@ async def generate_food_image(
         except Exception as e:
             print(f"[ERROR] Food image generation failed: {e}")
 
-    # Option 3: Return ephemeral food image without any database persistence
-    # - Allows multi-tab comparison across different cities/personas
-    # - Ensures fresh image variations on each request
-    # - Prevents old city images from being reused after switching cities
+    # Store the image in the recommendation
+    if image_data_uri:
+        # Initialize food_images dict if it doesn't exist
+        if "food_images" not in persona:
+            persona["food_images"] = {}
+
+        # Store using content-based deterministic key to avoid stale mismatches
+        image_key = _food_image_key(meal_type, restaurant_name, dish, drink)
+        persona["food_images"][image_key] = image_data_uri
+
+        # Update persona
+        persona = upsert_persona_fields(results, persona_id, {"food_images": persona["food_images"]})
+
+    # Persist any changes and respond
+    ar.results = results
+    try:
+        flag_modified(ar, "results")
+        db.add(ar)
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Failed to save food image: {e}")
+
     return {
         "ok": True,
         "result_id": result_id,
@@ -588,6 +622,41 @@ async def generate_food_image(
         "image_data_uri": image_data_uri,
         "value_source": value_source
     }
+
+@router.post("/{result_id}/{persona_id}/food-images/clear")
+async def clear_food_images(
+    result_id: int,
+    persona_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Clear all cached/generated food images for a persona.
+
+    This is useful when the text of recommendations changes and you want to
+    regenerate images to fit the new descriptions.
+    """
+    ar = _assert_ownership(db, result_id, user)
+    results = _load_results_obj(ar)
+
+    persona = upsert_persona_fields(results, persona_id, {})
+    cleared = 0
+    try:
+        imgs = persona.get("food_images") or {}
+        if isinstance(imgs, dict):
+            cleared = len(imgs)
+        persona["food_images"] = {}
+
+        # Persist
+        upsert_persona_fields(results, persona_id, {"food_images": persona["food_images"]})
+        ar.results = results
+        flag_modified(ar, "results")
+        db.add(ar)
+        db.commit()
+    except Exception as e:
+        print(f"[ERROR] Failed to clear food images for persona {persona_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear food images")
+
+    return {"ok": True, "result_id": result_id, "persona_id": persona_id, "cleared": cleared}
 
 
 @router.get("/results")
@@ -696,102 +765,6 @@ async def list_analysis_results(
         )
 
     return {"ok": True, "items": items}
-
-
-@router.post("/cleanup-images")
-async def cleanup_persona_images(
-    payload: Dict[str, Any] = Body(default={}),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
-    """
-    Remove all persisted avatar and food images from AnalysisResult.results.personas[*].
-
-    Default scope: only results owned by the current user. To attempt a global cleanup,
-    pass {"for_all": true} in the request body. Use with caution.
-    """
-    for_all = bool(payload.get("for_all"))
-    limit = payload.get("limit")
-    try:
-        limit = int(limit) if limit is not None else None
-    except Exception:
-        limit = None
-
-    # Select rows
-    rows = []
-    try:
-        q = db.query(AnalysisResult)
-        if not for_all:
-            try:
-                if user and getattr(user, "user_id", None):
-                    q = (
-                        q.join(InterviewData, AnalysisResult.data_id == InterviewData.id)
-                         .filter(InterviewData.user_id == user.user_id)
-                    )
-            except Exception:
-                pass
-        if limit and limit > 0:
-            rows = q.limit(limit).all()
-        else:
-            rows = q.all()
-    except Exception as e:
-        print(f"[ERROR] Cleanup query failed: {e}")
-        rows = []
-
-    counters: Dict[str, int] = {
-        "rows_scanned": 0,
-        "rows_updated": 0,
-        "avatars_removed": 0,
-        "food_images_removed": 0,
-    }
-
-    for ar in rows:
-        counters["rows_scanned"] += 1
-        res = _load_results_obj(ar)
-        personas = res.get("personas")
-        modified = False
-        if isinstance(personas, list):
-            for i, p in enumerate(personas):
-                if not isinstance(p, dict):
-                    continue
-                removed_any = False
-                # Remove avatar variants
-                for key in ("avatar_data_uri", "avatar_url", "avatar"):
-                    if p.pop(key, None) is not None:
-                        counters["avatars_removed"] += 1
-                        removed_any = True
-                # Remove food images
-                if p.pop("food_images", None) is not None:
-                    counters["food_images_removed"] += 1
-                    removed_any = True
-                if removed_any:
-                    personas[i] = p
-                    modified = True
-        if modified:
-            try:
-                ar.results = res
-                flag_modified(ar, "results")
-                db.add(ar)
-                counters["rows_updated"] += 1
-            except Exception as e:
-                print(f"[ERROR] Failed to stage cleanup for result {getattr(ar,'result_id', '?')}: {e}")
-                continue
-
-    try:
-        db.commit()
-    except Exception as e:
-        print(f"[ERROR] Cleanup commit failed: {e}")
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail="Cleanup failed during commit")
-
-    return {
-        "ok": True,
-        "scope": "all" if for_all else "user",
-        **counters,
-    }
 
 
 @router.post("/{result_id}/{persona_id}/city-profile")

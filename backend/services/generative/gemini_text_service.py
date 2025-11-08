@@ -206,7 +206,7 @@ class GeminiTextService:
             "Return strict JSON only."
         )
 
-        data = self.generate_json(prompt, temperature=0.8)
+        data = self.generate_json(prompt, temperature=0.5)
         if data:
             print(f"[DEBUG] GeminiTextService: Successfully generated city profile for {city}")
         else:
