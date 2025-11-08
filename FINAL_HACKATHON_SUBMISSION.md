@@ -35,7 +35,7 @@ What sets our project apart is how it blends context, personalization, and visua
 
 **Key Innovations:**
 - **OpenAI-Compatible Architecture:** Built with schema compatibility for seamless integration with multiple AI providers
-- **Multi-Provider AI Stack:** Combines OpenAI, Google Gemini, Runware, and Runway for optimal results
+- **Multi-Provider AI Stack:** Combines OpenAI, Google Gemini, Runware for optimal results
 - **Location-Aware Intelligence:** Dynamic city-based recommendations that match persona preferences
 - **Evidence-Linked Personas:** Every recommendation traces back to real interview data
 - **Intelligent Classification:** LLM-based beverage detection prevents data errors
@@ -71,7 +71,7 @@ We're building this for food delivery platforms, restaurant finders, and food te
 - **Google Gemini 2.5 Flash** - Text generation (city profiles, quotes, beverage classification, persona analysis)
 - **Runware** - Image generation infrastructure
 - **Gemini 2.5 Nano Banana** - Image generation model (avatars, food photography)
-- **Runway** - Video generation capability for future persona intro videos
+- **Runware** - Video generation capability for future persona intro videos
 - **google-genai SDK (1.10.0)** - Google AI integration
 
 **Core Engine:**
@@ -79,10 +79,10 @@ We're building this for food delivery platforms, restaurant finders, and food te
 
 ### Future Potential: How could your project be developed into a larger initiative?
 
-This could evolve into a full ecosystem that connects across smart devices, like recommending meals through your voice assistant. We plan to integrate Runway for persona intro videos. Over time, the system could learn from real feedback to refine its suggestions automatically.
+This could evolve into a full ecosystem that connects across smart devices, like recommending meals through your mobile assistant. We plan to integrate Runware for persona intro videos. Over time, the system could learn from real feedback to refine its suggestions automatically.
 
 **Short-term (3-6 months):**
-- Video generation with Runway for persona intro videos
+- Video generation with Runware for persona intro videos
 - Voice synthesis for persona dialogue
 - Multi-language support for global personas
 - Real-time persona simulation (chat with personas)
@@ -164,7 +164,6 @@ One of the toughest parts was generating food images that looked realistic and m
 - Food photography for recommendations
 - Text/watermark prevention
 
-**Runway** - Video generation capability for future persona intro videos
 
 ---
 
@@ -182,9 +181,6 @@ One of the toughest parts was generating food images that looked realistic and m
 - Temperature control allowed us to balance creativity and consistency
 - Excellent location-aware recommendations with cultural context
 
-**Runway:**
-- Video generation capabilities for future persona intro videos
-- Excited to integrate this for dynamic persona presentations
 
 **Features we didn't know about beforehand:**
 - Gemini 2.5 Nano Banana's ability to generate professional-quality portraits
