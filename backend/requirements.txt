@@ -1,0 +1,14 @@
+# Perpetual Personas - Hackathon Dependencies
+# These are the ADDITIONAL dependencies needed for Perpetual Personas
+# You must first install AxWise Flow OSS dependencies
+
+# Google Gemini AI
+google-genai>=1.10.0  # For Gemini 2.5 Flash and Flash Image
+
+# Already included in AxWise Flow OSS (listed for reference):
+# fastapi==0.110.0
+# sqlalchemy==2.0.27
+# psycopg2-binary==2.9.9
+# pydantic>=2.8.0
+# python-dotenv==1.0.1
+
